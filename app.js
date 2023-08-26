@@ -186,32 +186,36 @@ function promptAndAddRole() {
 
 // Function to prompt user and add an employee
 function promptAndAddEmployee() {
-  inquirer.prompt([
-    {
-      type: 'input',
-      name: 'firstName',
-      message: 'Enter the first name of the employee:',
-    },
-    {
-      type: 'input',
-      name: 'lastName',
-      message: 'Enter the last name of the employee:',
-    },
-    {
-      type: 'input',
-      name: 'roleId',
-      message: 'Enter the role ID for the employee:',
-    },
-    {
-      type: 'input',
-      name: 'managerId',
-      message: 'Enter the manager ID for the employee (or leave empty if none):',
-    },
-  ])
+  inquirer
+    .prompt([
+      {
+        type: 'input',
+        name: 'firstName',
+        message: 'Enter the first name of the employee:',
+      },
+      {
+        type: 'input',
+        name: 'lastName',
+        message: 'Enter the last name of the employee:',
+      },
+      {
+        type: 'input',
+        name: 'roleId',
+        message: 'Enter the role ID for the employee:',
+      },
+      {
+        type: 'input',
+        name: 'managerId',
+        message: 'Enter the manager ID for the employee (or leave empty if none):',
+      },
+    ])
     .then((answers) => {
       const { firstName, lastName, roleId, managerId } = answers;
-      // Add the employee to the database
-      addEmployee(firstName, lastName, roleId, managerId)
+
+      // If managerId is empty, set it to null
+      const managerIdValue = managerId.trim() === '' ? null : managerId;
+
+      addEmployee(firstName, lastName, roleId, managerIdValue)
         .then(() => {
           console.log(`Employee "${firstName} ${lastName}" added successfully.`);
         })
@@ -221,6 +225,7 @@ function promptAndAddEmployee() {
         .finally(promptBackToMenuOrQuit);
     });
 }
+
 
 // Function to prompt user and update an employee's role
 function promptAndUpdateEmployeeRole() {
@@ -267,24 +272,39 @@ function promptAndUpdateEmployeeRole() {
 
 // Function to prompt user and remove an employee
 function promptAndRemoveEmployee() {
-  inquirer.prompt([
-    {
-      type: 'input',
-      name: 'employeeId',
-      message: "Enter the ID of the employee you want to remove:",
-    },
-  ])
-    .then((answers) => {
-      const { employeeId } = answers;
-      // Remove the employee from the database
-      removeEmployee(pool, employeeId)
-        .then(() => {
-          console.log(`Employee with ID ${employeeId} removed successfully.`);
-        })
-        .catch((error) => {
-          console.error('Error removing employee:', error);
-        })
-        .finally(promptBackToMenuOrQuit);
+  getAllEmployees()
+    .then(([rows, fields]) => {
+      const employees = rows;
+      const employeeChoices = employees.map((employee) => ({
+        name: `${employee.first_name} ${employee.last_name}`,
+        value: employee.id,
+      }));
+
+      inquirer
+        .prompt([
+          {
+            type: 'list',
+            name: 'employeeId',
+            message: 'Select an employee to remove:',
+            choices: employeeChoices,
+          },
+        ])
+        .then((answers) => {
+          const { employeeId } = answers;
+
+          removeEmployee(employeeId)
+            .then(() => {
+              console.log('Employee removed successfully.');
+              promptBackToMenuOrQuit();
+            })
+            .catch((error) => {
+              console.error('Error removing employee:', error);
+              promptBackToMenuOrQuit();
+            });
+        });
+    })
+    .catch((error) => {
+      console.error('Error retrieving employees:', error);
     });
 }
 
